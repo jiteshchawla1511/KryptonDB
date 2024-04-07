@@ -11,6 +11,14 @@ import (
 	lsmtree "github.com/jiteshchawla1511/KryptonDB/LSM_Tree"
 )
 
+type Entry struct {
+	Key    string `json:"k"`
+	Value  string `json:"v"`
+	Delete bool   `json:"-"`
+}
+
+const DefaultWalPath = "wal.aof"
+
 type WAL struct {
 	filepath string
 	file     *os.File
@@ -86,6 +94,55 @@ func (w *WAL) Persist() error {
 	return nil
 }
 
+func (w *WAL) ReadEntries() []Entry {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	file, err := os.OpenFile(w.filepath, os.O_RDONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	reader := bufio.NewReader(file)
+
+	if err != nil {
+		panic(err)
+	}
+
+	data, err := io.ReadAll(reader)
+
+	if err != nil {
+		panic(err)
+	}
+
+	cmds := strings.Split(string(data), "\n")
+
+	entries := make([]Entry, 0, len(cmds))
+
+	for _, cmd := range cmds {
+		if cmd == "" {
+			continue
+		}
+
+		args := strings.Split(cmd, "|")
+
+		switch args[0] {
+		case "+":
+			if len(args) != 4 {
+				continue
+			}
+			entries = append(entries, Entry{Key: args[1], Value: args[2], Delete: false})
+		case "-":
+			if len(args) != 3 {
+				continue
+			}
+			entries = append(entries, Entry{Key: args[1], Delete: true})
+		}
+	}
+
+	return entries
+}
+
 func (w *WAL) InitDB(lsmTree *lsmtree.LSMTree) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
@@ -126,4 +183,11 @@ func (w *WAL) InitDB(lsmTree *lsmtree.LSMTree) error {
 	}
 
 	return nil
+}
+
+func (w *WAL) Truncate() {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.file.Truncate(0)
+	w.file.Seek(0, 0)
 }
