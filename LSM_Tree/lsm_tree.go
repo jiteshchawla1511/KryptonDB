@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+const (
+	MaximumElement      = 1024
+	CompactionFrequency = 1000
+	BloomErrorRate      = 0.001
+	BloomFilterCapacity = 1000000
+)
+
 type KV struct {
 	Key       string
 	Value     string
@@ -18,24 +25,32 @@ type LSMTree struct {
 	secondaryTree  *Node
 	diskFiles      []DiskFile
 	flushThreshold int
+	BloomFilter    *CustomBloomFilter
 }
 
-func InitLsmTree() *LSMTree {
+type LSMTreeOptions struct {
+	MaximumElement     int
+	CompactionPeriod   int
+	BloomFilterOptions CustomBloomFilterOptions
+}
+
+func InitLsmTree(options LSMTreeOptions) *LSMTree {
 	lsmTree := &LSMTree{
 		tree:           &Node{},
 		secondaryTree:  &Node{},
 		diskFiles:      []DiskFile{},
-		flushThreshold: 256,
+		flushThreshold: options.MaximumElement,
+		BloomFilter:    NewCustomBloomFilter(options.BloomFilterOptions),
 	}
 
-	go lsmTree.PeriodicCompaction()
+	go lsmTree.PeriodicCompaction(options.CompactionPeriod)
 	return lsmTree
 }
 
-func (lsmTree *LSMTree) PeriodicCompaction() {
+func (lsmTree *LSMTree) PeriodicCompaction(CompactionPeriod int) {
 
 	for {
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Duration(CompactionPeriod) * time.Millisecond)
 
 		var db1, db2 DiskFile
 
@@ -119,6 +134,12 @@ func (lsmTree *LSMTree) Get(key string) (string, bool) {
 		return pair.Value, true
 	}
 
+	isPresent := lsmTree.BloomFilter.Contains(key)
+
+	if !isPresent {
+		return "", false
+	}
+
 	lsmTree.treeRWLock.RUnlock()
 	lsmTree.diskRWLock.RLock()
 	defer lsmTree.diskRWLock.RUnlock()
@@ -143,6 +164,8 @@ func (lsmTree *LSMTree) Put(key string, value string) {
 	defer lsmTree.treeRWLock.Unlock()
 
 	Insert(&(lsmTree.tree), KV{key, value, false})
+
+	go lsmTree.BloomFilter.Add(key)
 
 	if lsmTree.tree.GetSize() >= lsmTree.flushThreshold && lsmTree.secondaryTree == nil {
 
