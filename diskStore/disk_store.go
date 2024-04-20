@@ -23,7 +23,7 @@ var (
 
 const (
 	DefaultNumOfPartitions = 10
-	DefaultDirectory       = "./data"
+	DefaultDirectory       = "/Users/jiteshchawla/KDB/KryptonDB/data"
 )
 
 type DiskStoreOpts struct {
@@ -38,7 +38,7 @@ type DiskStore struct {
 	Lock  sync.Mutex
 }
 
-func New(opts DiskStoreOpts) *DiskStore {
+func NewDisk(opts DiskStoreOpts) *DiskStore {
 
 	dir := opts.Directory
 	if !strings.HasSuffix(dir, "/") {
