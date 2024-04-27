@@ -18,12 +18,10 @@ func NewTree(elements []KV) *Node {
 		return &Node{Data: elements[0]}
 	}
 	root := &Node{
-		Data: elements[size/2],
-		Left: NewTree(elements[0 : size/2]),
-		Size: size,
-	}
-	if rightIndex := size/2 + 1; rightIndex < size {
-		root.Right = NewTree(elements[rightIndex:size])
+		Data:  elements[size/2],
+		Left:  NewTree(elements[0 : size/2]),
+		Right: NewTree(elements[(size/2)+1:]),
+		Size:  size,
 	}
 	return root
 }
