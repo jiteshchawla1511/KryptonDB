@@ -42,7 +42,6 @@ To get started with Krypton DB, follow these simple steps:
    ```bash
     telnet localhost port (for tcp, here port is what you will be defining in yaml)
     eg telnet localhost 8080
-    same for udp connection, you need to provide the udp port but it should used for GET Request only
    ```
 5. Querying
    
@@ -54,8 +53,5 @@ To get started with Krypton DB, follow these simple steps:
    ```bash
    GET KEY  
    ```
-   **DEL Request**
-   ```bash
-   DEL KEY
-   ```
+   
    
